@@ -43,8 +43,8 @@ export function HistogramChart({ values, mean, sigma, specification, unit, binCo
   return (
     <div>
       <p className="mb-2 text-xs text-ink-500">Frequency vs. measurement value ({unit})</p>
-      <ResponsiveContainer width="100%" height={280}>
-        <ComposedChart data={buckets} margin={{ top: 8, right: hasCurve ? 16 : 16, left: 8, bottom: 8 }}>
+      <ResponsiveContainer width="100%" height={320}>
+        <ComposedChart data={buckets} margin={{ top: 36, right: 16, left: 8, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-surface-200)" vertical={false} />
           <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--color-ink-500)" }} tickLine={false} interval="preserveStartEnd" />
           <YAxis
@@ -86,14 +86,19 @@ export function HistogramChart({ values, mean, sigma, specification, unit, binCo
             />
           )}
 
-          {mean != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, mean)} stroke="var(--color-ink-900)" strokeWidth={2} label={{ value: "Mean", position: "top", fontSize: 10 }} />}
-          {specification?.lsl != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, specification.lsl)} stroke="var(--color-status-warning)" strokeDasharray="4 2" label={{ value: "LSL", position: "top", fontSize: 10, fill: "var(--color-status-warning)" }} />}
-          {specification?.usl != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, specification.usl)} stroke="var(--color-status-warning)" strokeDasharray="4 2" label={{ value: "USL", position: "top", fontSize: 10, fill: "var(--color-status-warning)" }} />}
-          {specification?.target != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, specification.target)} stroke="var(--color-status-normal)" strokeDasharray="4 2" label={{ value: "Target", position: "top", fontSize: 10, fill: "var(--color-status-normal)" }} />}
+          {/* "top" labels all render at the same height above the plot
+              regardless of x-position -- when two lines land close together
+              (e.g. Mean and Target are often only a hair apart), their
+              labels would otherwise overlap. Distinct `offset` values stack
+              them at different heights instead. */}
+          {specification?.lsl != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, specification.lsl)} stroke="var(--color-status-warning)" strokeDasharray="4 2" label={{ value: "LSL", position: "top", offset: 8, fontSize: 10, fill: "var(--color-status-warning)" }} />}
+          {specification?.usl != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, specification.usl)} stroke="var(--color-status-warning)" strokeDasharray="4 2" label={{ value: "USL", position: "top", offset: 8, fontSize: 10, fill: "var(--color-status-warning)" }} />}
+          {specification?.target != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, specification.target)} stroke="var(--color-status-normal)" strokeDasharray="4 2" label={{ value: "Target", position: "top", offset: 22, fontSize: 10, fill: "var(--color-status-normal)" }} />}
+          {mean != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, mean)} stroke="var(--color-ink-900)" strokeWidth={2} label={{ value: "Mean", position: "top", offset: 8, fontSize: 10 }} />}
         </ComposedChart>
       </ResponsiveContainer>
       {mean != null && (
-        <p className="mt-1 text-center text-xs text-ink-500">
+        <p className="mt-3 text-center text-xs text-ink-500">
           Mean: {formatMeasurement(mean, unit)} · n = {values.length.toLocaleString()}
           {hasCurve && " · Green line: normal distribution fitted from mean/sigma, not the actual data density"}
         </p>
