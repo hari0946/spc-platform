@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, Bar, CartesianGrid, ComposedChart, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { SpecificationLimits } from "@/types";
 import { formatAxisTick, formatMeasurement } from "@/utils/formatNumber";
@@ -68,19 +68,22 @@ export function HistogramChart({ values, mean, sigma, specification, unit, binCo
             />
           )}
           <Tooltip
-            formatter={(value, name) => (name === "normalCurve" ? [formatAxisTick(Number(value), 4), "Normal fit"] : [value, "Frequency"])}
+            formatter={(value, name) => (name === "Normal fit" ? [formatAxisTick(Number(value), 4), "Normal fit"] : [value, "Frequency"])}
             labelFormatter={(label) => `Range: ${label} ${unit}`}
             contentStyle={{ fontSize: 12, borderRadius: 8 }}
           />
+          <Legend wrapperStyle={{ fontSize: 11 }} formatter={(value) => (value === "count" ? "Frequency" : value)} />
           <Bar yAxisId="frequency" dataKey="count" name="count" fill="var(--color-brand-600)" fillOpacity={0.55} radius={[2, 2, 0, 0]} isAnimationActive={false} />
           {hasCurve && (
-            <Line
+            <Area
               yAxisId="curve"
               type="monotone"
               dataKey="normalCurve"
-              name="normalCurve"
+              name="Normal fit"
               stroke="var(--color-status-normal)"
               strokeWidth={2}
+              fill="var(--color-status-normal)"
+              fillOpacity={0.15}
               dot={false}
               isAnimationActive={false}
             />
@@ -122,11 +125,11 @@ function normalPdf(x: number, mean: number, sigma: number, n: number, binWidth: 
 // as "tapered to the baseline" rather than abruptly cut off -- past ~3.5
 // sigma the density is under 0.1% of the peak, indistinguishable from zero
 // at chart resolution.
-const CURVE_TAPER_SIGMA = 3.5;
+const CURVE_TAPER_SIGMA = 4;
 // Safety cap on how many empty padding bins get added per side, so an
 // unusually large sigma relative to the data's own spread can't blow the
 // chart out into a mostly-empty wall of padding.
-const MAX_PADDING_BINS_PER_SIDE = 10;
+const MAX_PADDING_BINS_PER_SIDE = 14;
 
 function buildHistogram(
   values: number[],
