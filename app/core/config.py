@@ -7,8 +7,24 @@ mode, upload limits, SPC defaults) flows through this module.
 from __future__ import annotations
 
 from functools import lru_cache
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _ensure_sslmode_require(dsn: str) -> str:
+    """Append ``sslmode=require`` to a Postgres DSN if it isn't already
+    present. Railway's Postgres SSL template requires TLS connections --
+    without this, asyncpg's connection attempt is rejected and the pool
+    never comes up, crashing the app on startup.
+    """
+    parts = urlsplit(dsn)
+    query_pairs = parse_qsl(parts.query, keep_blank_values=True)
+    if any(key.lower() == "sslmode" for key, _ in query_pairs):
+        return dsn
+    query_pairs.append(("sslmode", "require"))
+    new_query = urlencode(query_pairs)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, new_query, parts.fragment))
 
 
 class Settings(BaseSettings):
@@ -65,10 +81,11 @@ class Settings(BaseSettings):
 
     @property
     def postgres_dsn(self) -> str:
-        return (
+        dsn = (
             f"postgresql://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+        return _ensure_sslmode_require(dsn)
 
     @property
     def allowed_upload_extensions(self) -> list[str]:
