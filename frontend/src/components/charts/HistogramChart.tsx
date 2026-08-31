@@ -33,7 +33,10 @@ interface HistogramBucket {
  * different visual language (bars, no time axis) from the control chart,
  * which answers "how does the process change over sequence/time?". */
 export function HistogramChart({ values, mean, sigma, specification, unit, binCount = 16 }: HistogramChartProps) {
-  const buckets = useMemo(() => buildHistogram(values, binCount, mean, sigma), [values, binCount, mean, sigma]);
+  const buckets = useMemo(
+    () => buildHistogram(values, binCount, mean, sigma, specification),
+    [values, binCount, mean, sigma, specification],
+  );
   const hasCurve = mean != null && sigma != null && sigma > 0;
 
   if (values.length === 0) {
@@ -122,16 +125,19 @@ function normalPdf(x: number, mean: number, sigma: number, n: number, binWidth: 
 // sigma the density is under 0.1% of the peak, indistinguishable from zero
 // at chart resolution.
 const CURVE_TAPER_SIGMA = 4;
-// Safety cap on how many empty padding bins get added per side, so an
-// unusually large sigma relative to the data's own spread can't blow the
-// chart out into a mostly-empty wall of padding.
-const MAX_PADDING_BINS_PER_SIDE = 14;
+// Pure safety net against a pathological input (e.g. a garbage sigma),
+// not a limit that normal curve-taper or spec-limit padding should ever
+// hit -- LSL/USL/Target must always fall inside the plotted range (see
+// below), or their reference lines silently collapse onto the same edge
+// bucket and their labels render stacked on top of each other.
+const ABSOLUTE_MAX_PADDING_BINS_PER_SIDE = 40;
 
 function buildHistogram(
   values: number[],
   binCount: number,
   mean?: number | null,
   sigma?: number | null,
+  specification?: SpecificationLimits | null,
 ): HistogramBucket[] {
   if (values.length === 0) return [];
   const dataMin = Math.min(...values);
@@ -140,19 +146,29 @@ function buildHistogram(
   const width = span / binCount;
   const hasCurve = mean != null && sigma != null && sigma > 0;
 
-  // Extend the bucket range past the real data on both sides, far enough
+  // Extend the bucket range past the real data on both sides -- far enough
   // for the normal curve to actually decay toward the baseline instead of
-  // being clipped flat at the edge of wherever the data happened to stop.
-  // The extra bins are real bins (same width as the data-driven ones) --
-  // they just never receive any actual values, so they stay count = 0.
-  let paddingLeftBins = 0;
-  let paddingRightBins = 0;
+  // being clipped flat, AND always far enough to include LSL/USL/Target if
+  // they're set, however far from the data they happen to be. The extra
+  // bins are real bins (same width as the data-driven ones), they just
+  // never receive any actual values, so they stay count = 0.
+  const lowerBounds = [dataMin];
+  const upperBounds = [dataMax];
   if (hasCurve) {
-    const curveLowerBound = mean - CURVE_TAPER_SIGMA * sigma;
-    const curveUpperBound = mean + CURVE_TAPER_SIGMA * sigma;
-    paddingLeftBins = Math.min(MAX_PADDING_BINS_PER_SIDE, Math.max(0, Math.ceil((dataMin - curveLowerBound) / width)));
-    paddingRightBins = Math.min(MAX_PADDING_BINS_PER_SIDE, Math.max(0, Math.ceil((curveUpperBound - dataMax) / width)));
+    lowerBounds.push(mean - CURVE_TAPER_SIGMA * sigma);
+    upperBounds.push(mean + CURVE_TAPER_SIGMA * sigma);
   }
+  if (specification?.lsl != null) lowerBounds.push(specification.lsl);
+  if (specification?.usl != null) upperBounds.push(specification.usl);
+  if (specification?.target != null) {
+    lowerBounds.push(specification.target);
+    upperBounds.push(specification.target);
+  }
+  const lowerBound = Math.min(...lowerBounds);
+  const upperBound = Math.max(...upperBounds);
+
+  const paddingLeftBins = Math.min(ABSOLUTE_MAX_PADDING_BINS_PER_SIDE, Math.max(0, Math.ceil((dataMin - lowerBound) / width)));
+  const paddingRightBins = Math.min(ABSOLUTE_MAX_PADDING_BINS_PER_SIDE, Math.max(0, Math.ceil((upperBound - dataMax) / width)));
 
   const min = dataMin - paddingLeftBins * width;
   const totalBins = binCount + paddingLeftBins + paddingRightBins;
@@ -180,6 +196,13 @@ function buildHistogram(
 }
 
 function findBucketLabel(buckets: HistogramBucket[], value: number): string {
+  if (buckets.length === 0) return "";
   const bucket = buckets.find((b) => value >= b.rangeStart && value <= b.rangeEnd);
-  return bucket?.label ?? buckets[buckets.length - 1]?.label ?? "";
+  if (bucket) return bucket.label;
+  // The bucket range always covers LSL/USL/Target by construction (see
+  // buildHistogram), so this only triggers for a value genuinely outside
+  // that -- fall to whichever edge is actually nearer, rather than always
+  // the last bucket, so two out-of-range values on opposite sides don't
+  // collapse onto the same label.
+  return value < buckets[0].rangeStart ? buckets[0].label : buckets[buckets.length - 1].label;
 }
