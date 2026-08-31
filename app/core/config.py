@@ -68,6 +68,7 @@ class Settings(BaseSettings):
         return (
             f"postgresql://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            f"?sslmode=require"
         )
 
     @property
@@ -82,3 +83,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
