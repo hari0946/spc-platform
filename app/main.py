@@ -19,7 +19,6 @@ from app.api.routes import (
     alerts,
     baselines,
     configurations,
-    dev_seed,
     findings,
     historical_analysis,
     manual_check,
@@ -89,7 +88,6 @@ def create_app() -> FastAPI:
     app.include_router(findings.router, prefix=prefix)
     app.include_router(alerts.router, prefix=prefix)
     app.include_router(reference_data.router, prefix=prefix)
-    app.include_router(dev_seed.router, prefix=prefix)  # TEMPORARY -- remove after one-time seeding
 
     @app.get("/health", tags=["health"])
     async def health() -> dict[str, str]:

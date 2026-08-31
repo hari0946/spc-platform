@@ -63,7 +63,7 @@ async def main() -> None:
     print(f"organization_id={org['organization_id']}  ({org['name']})")
     print(f"plant_id={plant['plant_id']}  ({plant['name']})")
     print(f"machine_id={machine['machine_id']}  ({machine['name']} / {machine['code']})")
-    print(f"product_id={product['product_id']}  ({product['name']} / {product['code']})")
+    print(f"product_id={product['product_id']}  ({product['name']} / {product['part_number']})")
     print(f"process_id={process['process_id']}  ({process['name']})")
     print(f"operation_id={operation['operation_id']}  ({operation['name']} / {operation['code']})")
     print(f"parameter_id={parameter['parameter_id']}  ({parameter['name']}, unit={parameter['unit']})")
