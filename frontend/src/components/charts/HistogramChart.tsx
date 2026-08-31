@@ -118,6 +118,16 @@ function normalPdf(x: number, mean: number, sigma: number, n: number, binWidth: 
   return density * n * binWidth;
 }
 
+// How many sigma out a normal curve needs to run before it visually reads
+// as "tapered to the baseline" rather than abruptly cut off -- past ~3.5
+// sigma the density is under 0.1% of the peak, indistinguishable from zero
+// at chart resolution.
+const CURVE_TAPER_SIGMA = 3.5;
+// Safety cap on how many empty padding bins get added per side, so an
+// unusually large sigma relative to the data's own spread can't blow the
+// chart out into a mostly-empty wall of padding.
+const MAX_PADDING_BINS_PER_SIDE = 10;
+
 function buildHistogram(
   values: number[],
   binCount: number,
@@ -125,13 +135,30 @@ function buildHistogram(
   sigma?: number | null,
 ): HistogramBucket[] {
   if (values.length === 0) return [];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
+  const dataMin = Math.min(...values);
+  const dataMax = Math.max(...values);
+  const span = dataMax - dataMin || 1;
   const width = span / binCount;
   const hasCurve = mean != null && sigma != null && sigma > 0;
 
-  const buckets: HistogramBucket[] = Array.from({ length: binCount }, (_, i) => {
+  // Extend the bucket range past the real data on both sides, far enough
+  // for the normal curve to actually decay toward the baseline instead of
+  // being clipped flat at the edge of wherever the data happened to stop.
+  // The extra bins are real bins (same width as the data-driven ones) --
+  // they just never receive any actual values, so they stay count = 0.
+  let paddingLeftBins = 0;
+  let paddingRightBins = 0;
+  if (hasCurve) {
+    const curveLowerBound = mean - CURVE_TAPER_SIGMA * sigma;
+    const curveUpperBound = mean + CURVE_TAPER_SIGMA * sigma;
+    paddingLeftBins = Math.min(MAX_PADDING_BINS_PER_SIDE, Math.max(0, Math.ceil((dataMin - curveLowerBound) / width)));
+    paddingRightBins = Math.min(MAX_PADDING_BINS_PER_SIDE, Math.max(0, Math.ceil((curveUpperBound - dataMax) / width)));
+  }
+
+  const min = dataMin - paddingLeftBins * width;
+  const totalBins = binCount + paddingLeftBins + paddingRightBins;
+
+  const buckets: HistogramBucket[] = Array.from({ length: totalBins }, (_, i) => {
     const rangeStart = min + i * width;
     const rangeEnd = rangeStart + width;
     const center = rangeStart + width / 2;
@@ -146,7 +173,7 @@ function buildHistogram(
   });
 
   for (const value of values) {
-    const index = Math.min(Math.floor((value - min) / width), binCount - 1);
+    const index = Math.max(0, Math.min(Math.floor((value - min) / width), totalBins - 1));
     buckets[index].count += 1;
   }
 
