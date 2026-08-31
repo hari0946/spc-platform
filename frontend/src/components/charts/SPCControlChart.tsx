@@ -86,6 +86,14 @@ export function SPCControlChart({
   const enriched = useMemo(() => enrichChartPoints(points, violations), [points, violations]);
   const { displayed, wasDownsampled } = useMemo(() => downsampleForDisplay(enriched), [enriched]);
 
+  // Spec limits (USL/LSL/Target) usually sit much further from the center
+  // line than the control limits do -- including them in the Y-domain
+  // stretches the axis so wide that the sigma zone bands (which only span
+  // UCL to LCL) get squeezed into a thin, cramped strip. When zones are
+  // being shown, the zoomed-in control-limit view wins: the domain is
+  // computed from the data and control limits only, same as the
+  // (zone-friendly) secondary chart, and spec/target lines simply fall
+  // outside the visible range rather than fighting zones for space.
   const yDomain = useMemo(
     () =>
       computeYDomain([
@@ -93,11 +101,11 @@ export function SPCControlChart({
         ucl,
         lcl,
         centerLine,
-        showSpecLimits ? specification?.usl : undefined,
-        showSpecLimits ? specification?.lsl : undefined,
-        showTarget ? specification?.target : undefined,
+        showSpecLimits && !showSigmaZones ? specification?.usl : undefined,
+        showSpecLimits && !showSigmaZones ? specification?.lsl : undefined,
+        showTarget && !showSigmaZones ? specification?.target : undefined,
       ]),
-    [enriched, ucl, lcl, centerLine, specification, showSpecLimits, showTarget],
+    [enriched, ucl, lcl, centerLine, specification, showSpecLimits, showTarget, showSigmaZones],
   );
 
   function toggleFullscreen() {
