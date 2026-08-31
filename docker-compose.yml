@@ -1,0 +1,26 @@
+# Local PostgreSQL for application metadata / analysis results / baselines.
+# Snowflake is a managed cloud service and is not containerized here; point
+# the SNOWFLAKE_* environment variables at a real (or trial) Snowflake
+# account. INGESTION_MODE=DEMO keeps the ingestion path usable without any
+# external stage/cloud storage setup.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: spc_platform_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-spc_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-spc_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - spc_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spc_app} -d ${POSTGRES_DB:-spc_platform}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  spc_postgres_data:
