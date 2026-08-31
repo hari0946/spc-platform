@@ -106,6 +106,7 @@ export function HistoricalAnalysisPage() {
         <DistributionChart
           values={analysis.chart.primary_chart.points.map((p) => p.value)}
           mean={analysis.statistics.mean}
+          sigma={analysis.statistics.overall_sigma}
           specification={analysis.specification}
           unit={analysis.unit}
         />

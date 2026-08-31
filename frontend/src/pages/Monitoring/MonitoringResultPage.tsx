@@ -85,6 +85,7 @@ export function MonitoringResultPage() {
         <DistributionChart
           values={result.current_chart.points.map((p) => p.value)}
           mean={result.current.mean}
+          sigma={result.current.overall_sigma}
           specification={result.specification}
           unit={result.unit}
         />
