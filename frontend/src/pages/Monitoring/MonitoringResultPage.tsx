@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { BaselineComparison } from "@/components/baseline/BaselineComparison";
 import { FindingsPanel } from "@/components/analysis/FindingsPanel";
 import { ViolationsTable } from "@/components/analysis/ViolationsTable";
+import { DistributionChart } from "@/components/charts/DistributionChart";
 import { SPCControlChart } from "@/components/charts/SPCControlChart";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -78,6 +79,16 @@ export function MonitoringResultPage() {
           />
         </section>
       )}
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-ink-900">Distribution of Current Measurements</h2>
+        <DistributionChart
+          values={result.current_chart.points.map((p) => p.value)}
+          mean={result.current.mean}
+          specification={result.specification}
+          unit={result.unit}
+        />
+      </section>
 
       <section>
         <h2 className="mb-3 text-sm font-semibold text-ink-900">Baseline vs. Current Comparison</h2>
