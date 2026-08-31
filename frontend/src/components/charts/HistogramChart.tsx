@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Area, Bar, CartesianGrid, ComposedChart, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, ComposedChart, LabelList, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { SpecificationLimits } from "@/types";
 import { formatAxisTick, formatMeasurement } from "@/utils/formatNumber";
@@ -43,12 +43,21 @@ export function HistogramChart({ values, mean, sigma, specification, unit, binCo
   return (
     <div>
       <p className="mb-2 text-xs text-ink-500">Frequency vs. measurement value ({unit})</p>
-      <ResponsiveContainer width="100%" height={320}>
+      <ResponsiveContainer width="100%" height={340}>
         <ComposedChart data={buckets} margin={{ top: 36, right: 16, left: 8, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-surface-200)" vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--color-ink-500)" }} tickLine={false} interval="preserveStartEnd" />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 10, fill: "var(--color-ink-500)" }}
+            tickLine={false}
+            interval="preserveStartEnd"
+            label={{ value: `Measurement (${unit})`, position: "insideBottom", offset: -4, fontSize: 11, fill: "var(--color-ink-500)" }}
+          />
+          {/* Bars and curve share one axis -- the curve is scaled (density x
+              n x bin width) to already be in "expected count" units, so it's
+              directly comparable to the bar counts on the same scale, the
+              way a fitted-normal-curve overlay is conventionally drawn. */}
           <YAxis
-            yAxisId="frequency"
             tick={{ fontSize: 11, fill: "var(--color-ink-500)" }}
             tickLine={false}
             width={40}
@@ -56,34 +65,21 @@ export function HistogramChart({ values, mean, sigma, specification, unit, binCo
             allowDecimals={false}
             label={{ value: "Frequency", angle: -90, position: "insideLeft", fontSize: 10, fill: "var(--color-ink-500)" }}
           />
-          {hasCurve && (
-            <YAxis
-              yAxisId="curve"
-              orientation="right"
-              tick={{ fontSize: 11, fill: "var(--color-brand-600)" }}
-              tickLine={false}
-              width={40}
-              tickFormatter={(v) => formatAxisTick(v, 3)}
-              label={{ value: "Normal fit", angle: 90, position: "insideRight", fontSize: 10, fill: "var(--color-brand-600)" }}
-            />
-          )}
           <Tooltip
-            formatter={(value, name) => (name === "Normal fit" ? [formatAxisTick(Number(value), 4), "Normal fit"] : [value, "Frequency"])}
+            formatter={(value, name) => (name === "Normal fit" ? [formatAxisTick(Number(value), 2), "Normal fit"] : [value, "Frequency"])}
             labelFormatter={(label) => `Range: ${label} ${unit}`}
             contentStyle={{ fontSize: 12, borderRadius: 8 }}
           />
-          <Legend wrapperStyle={{ fontSize: 11 }} formatter={(value) => (value === "count" ? "Frequency" : value)} />
-          <Bar yAxisId="frequency" dataKey="count" name="count" fill="var(--color-brand-600)" fillOpacity={0.55} radius={[2, 2, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="count" name="Frequency" fill="#bbf7d0" stroke="var(--color-ink-900)" strokeWidth={1} isAnimationActive={false}>
+            <LabelList dataKey="count" position="top" formatter={(v: unknown) => (typeof v === "number" && v > 0 ? v : "")} fontSize={11} fill="var(--color-ink-700)" />
+          </Bar>
           {hasCurve && (
-            <Area
-              yAxisId="curve"
+            <Line
               type="monotone"
               dataKey="normalCurve"
               name="Normal fit"
-              stroke="var(--color-status-normal)"
+              stroke="var(--color-brand-700)"
               strokeWidth={2}
-              fill="var(--color-status-normal)"
-              fillOpacity={0.15}
               dot={false}
               isAnimationActive={false}
             />
@@ -94,16 +90,16 @@ export function HistogramChart({ values, mean, sigma, specification, unit, binCo
               (e.g. Mean and Target are often only a hair apart), their
               labels would otherwise overlap. Distinct `offset` values stack
               them at different heights instead. */}
-          {specification?.lsl != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, specification.lsl)} stroke="var(--color-status-warning)" strokeDasharray="4 2" label={{ value: "LSL", position: "top", offset: 8, fontSize: 10, fill: "var(--color-status-warning)" }} />}
-          {specification?.usl != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, specification.usl)} stroke="var(--color-status-warning)" strokeDasharray="4 2" label={{ value: "USL", position: "top", offset: 8, fontSize: 10, fill: "var(--color-status-warning)" }} />}
-          {specification?.target != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, specification.target)} stroke="var(--color-status-normal)" strokeDasharray="4 2" label={{ value: "Target", position: "top", offset: 22, fontSize: 10, fill: "var(--color-status-normal)" }} />}
-          {mean != null && <ReferenceLine yAxisId="frequency" x={findBucketLabel(buckets, mean)} stroke="var(--color-ink-900)" strokeWidth={2} label={{ value: "Mean", position: "top", offset: 8, fontSize: 10 }} />}
+          {specification?.lsl != null && <ReferenceLine x={findBucketLabel(buckets, specification.lsl)} stroke="var(--color-status-critical)" strokeWidth={1.5} label={{ value: `LSL=${formatMeasurement(specification.lsl, "")}`, position: "top", offset: 8, fontSize: 11 }} />}
+          {specification?.usl != null && <ReferenceLine x={findBucketLabel(buckets, specification.usl)} stroke="var(--color-status-critical)" strokeWidth={1.5} label={{ value: `USL=${formatMeasurement(specification.usl, "")}`, position: "top", offset: 8, fontSize: 11 }} />}
+          {specification?.target != null && <ReferenceLine x={findBucketLabel(buckets, specification.target)} stroke="var(--color-status-normal)" strokeDasharray="4 2" label={{ value: "Target", position: "top", offset: 22, fontSize: 10, fill: "var(--color-status-normal)" }} />}
+          {mean != null && <ReferenceLine x={findBucketLabel(buckets, mean)} stroke="var(--color-ink-900)" strokeDasharray="4 2" label={{ value: "Mean", position: "top", offset: 22, fontSize: 10 }} />}
         </ComposedChart>
       </ResponsiveContainer>
       {mean != null && (
         <p className="mt-3 text-center text-xs text-ink-500">
           Mean: {formatMeasurement(mean, unit)} · n = {values.length.toLocaleString()}
-          {hasCurve && " · Green line: normal distribution fitted from mean/sigma, not the actual data density"}
+          {hasCurve && " · Blue curve: normal distribution fitted from mean/sigma, not the actual data density"}
         </p>
       )}
     </div>
